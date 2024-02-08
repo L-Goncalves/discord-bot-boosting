@@ -4,7 +4,7 @@ import { client } from "../bot.js";
 client.on("ready", async () => {
   console.log(`> ${client.user.tag} is Ready !!`);
   client.user.setActivity({
-    name: `Coded By Kabir ❤️‍🔥`,
+    name: `Boosts🔄`,
     type: ActivityType.Watching,
   });
 });
