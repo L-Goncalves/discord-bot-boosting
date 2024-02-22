@@ -1,13 +1,10 @@
-# Hi, I'm Kabir! 👋
-
-I'm a Discord Bot Developer and here is mine bot handler
-
 ## Installation | How to use the Handler
 
 1. Clone this repository.
 2. Fill in the required details in **`settings/config.js`**.
 3. Run `npm install` to install dependencies.
-4. Start the bot with `node index.js`.
+4. Start the bot with `npm start`.
+5. For Development you can also do `npm run dev`.
 
 ### _Modify - config.js_
 
