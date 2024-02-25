@@ -2,7 +2,7 @@ import {
   ApplicationCommandType,
   PermissionFlagsBits,
   ChannelType,
-  PermissionsBitField
+  PermissionsBitField,
 } from "discord.js";
 /**
  * @type {import("../../../index.js").Scommand}
@@ -44,6 +44,23 @@ export default {
       if (!logsChannel) {
         logsChannel = await guild.channels.create({
           name: "logs",
+          type: ChannelType.GuildText,
+          permissionOverwrites: [
+            {
+              id: guild.id, // @everyone
+              deny: [PermissionsBitField.Flags.ViewChannel],
+            },
+          ],
+        });
+      }
+
+      // Create or find the "commands" channel
+      let commands = guild.channels.cache.find(
+        (c) => c.name === "commands" && c.type === ChannelType.GuildText
+      );
+      if (!commands) {
+        logsChannel = await guild.channels.create({
+          name: "commands",
           type: ChannelType.GuildText,
           permissionOverwrites: [
             {
