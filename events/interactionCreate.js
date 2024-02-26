@@ -1,14 +1,38 @@
 import { InteractionType, PermissionsBitField, EmbedBuilder } from "discord.js";
 import { client } from "../bot.js";
 import {
-  chooseAndReroll,
-  createCustomChannel,
-  handleSubmit
+  handleBoostSubmit,
+  verificationCard,
+  firstModal,
+  secondModal,
 } from "../Commands/Functions/main.js";
 
 client.on("interactionCreate", async (interaction) => {
+  const customId = interaction.customId;
+
   if (interaction.isModalSubmit()) {
-    handleSubmit(interaction)
+    verificationCard(client, interaction);
+  }
+
+  if (interaction.customId && customId.includes("send-boosts")) {
+    const response = await handleBoostSubmit(interaction, customId);
+    try {
+      if (response instanceof Error) {
+        interaction.reply({ content: response.message });
+      } else {
+        interaction.reply({ content: "Enviado ao Canal #Boosts" });
+      }
+    } catch (error) {
+      console.log("An error ocurred but app didnt crash", error);
+    }
+  }
+
+  if (interaction.customId && customId.includes("send-firstpage")) {
+    firstModal(client, interaction);
+  }
+
+  if (interaction.customId && customId.includes("send-secondpage")) {
+    secondModal(client, interaction);
   }
 
   if (interaction.isCommand() && !interaction.user.bot && interaction.guild) {
