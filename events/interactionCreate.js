@@ -5,6 +5,7 @@ import {
   verificationCard,
   firstModal,
   secondModal,
+  deleteBoost,
 } from "../Commands/Functions/main.js";
 
 client.on("interactionCreate", async (interaction) => {
@@ -20,7 +21,13 @@ client.on("interactionCreate", async (interaction) => {
       if (response instanceof Error) {
         interaction.reply({ content: response.message });
       } else {
-        interaction.reply({ content: "Enviado ao Canal #Boosts" });
+        const message = await interaction.reply({
+          content: "Enviado ao Canal #Boosts",
+        });
+
+        await new Promise((resolve) => setTimeout(resolve, 3000));
+
+        message.delete();
       }
     } catch (error) {
       console.log("An error ocurred but app didnt crash", error);
@@ -33,6 +40,23 @@ client.on("interactionCreate", async (interaction) => {
 
   if (interaction.customId && customId.includes("send-secondpage")) {
     secondModal(client, interaction);
+  }
+
+  if (interaction.customId && customId.includes("delete-boost")) {
+    try {
+      const boostId = interaction.customId.split("_")[1];
+      const channel = client.channels.cache.get(interaction.channelId);
+      deleteBoost(channel, interaction, boostId);
+
+      const message = await interaction.reply({
+        content: "Boost foi deletado com sucesso✅.",
+      });
+      await new Promise((resolve) => setTimeout(resolve, 3000));
+
+      message.delete();
+    } catch (error) {
+      console.log("An error handled", error);
+    }
   }
 
   if (interaction.isCommand() && !interaction.user.bot && interaction.guild) {

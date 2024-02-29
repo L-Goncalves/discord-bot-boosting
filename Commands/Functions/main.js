@@ -565,7 +565,6 @@ export async function verificationCard(client, interaction) {
 
     const reply = await interaction.reply({ content: "Criando Formulário..." });
 
-    // await new Promise((resolve) => setTimeout(resolve, 5000));
     reply.delete();
   }
 
@@ -634,13 +633,13 @@ export async function verificationCard(client, interaction) {
             disabled: false,
             type: 2,
           },
-          // {
-          //   style: 1,
-          //   label: "Editar Boost",
-          //   custom_id: "edit-boost",
-          //   disabled: false,
-          //   type: 2,
-          // },
+          {
+            style: 2,
+            label: "Deletar Boost",
+            custom_id: `delete-boost_${randomID}`,
+            disabled: false,
+            type: 2,
+          },
         ],
       },
     ];
@@ -686,6 +685,13 @@ export async function verificationCard(client, interaction) {
           //   disabled: false,
           //   type: 2,
           // },
+          {
+            style: 2,
+            label: "Deletar Boost",
+            custom_id: `delete-boost_${randomID}`,
+            disabled: false,
+            type: 2,
+          },
         ],
       },
     ];
@@ -717,4 +723,22 @@ export async function verificationCard(client, interaction) {
   } else {
     sendVerificationCard(channel, "", components, [embeb]);
   }
+}
+
+export async function deleteBoost(channel, interaction, boostId) {
+  const messages = await channel.messages.fetch({ limit: 10 });
+
+  const messagesToEdit = await messages.filter((message) => {
+    const embeds = message.embeds;
+
+    if (embeds.length === 0) {
+      return false;
+    }
+
+    return boostId === message.embeds[0].data.title.split("#")[1];
+  });
+
+  const messageToDelete = messagesToEdit.first();
+
+  messageToDelete.delete();
 }
