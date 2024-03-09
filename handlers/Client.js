@@ -31,6 +31,7 @@ export class Bot extends Client {
         GatewayIntentBits.DirectMessages,
         GatewayIntentBits.DirectMessageReactions,
         GatewayIntentBits.DirectMessageTyping,
+        GatewayIntentBits.MessageContent,
       ],
       shards: "auto",
       failIfNotExists: false,
@@ -45,6 +46,7 @@ export class Bot extends Client {
     // global variables
     this.config = settings;
     this.scommands = new Collection();
+    this.prefixCommands = new Collection();
     this.mcommands = new Collection();
     this.cooldowns = new Collection();
     this.events = new Collection();
@@ -95,8 +97,10 @@ export class Bot extends Client {
 }
 
 async function loadHandlers(client) {
-  ["messageHandler", "slashHandler", "eventHandler"].forEach(async (file) => {
-    let handler = await import(`./${file}.js`).then((r) => r.default);
-    await handler(client);
-  });
+  ["messageHandler", "slashHandler", "eventHandler", "prefixHandler"].forEach(
+    async (file) => {
+      let handler = await import(`./${file}.js`).then((r) => r.default);
+      await handler(client);
+    }
+  );
 }
