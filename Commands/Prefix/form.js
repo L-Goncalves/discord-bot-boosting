@@ -63,6 +63,17 @@ const formCommand = {
         return;
       }
 
+      const user = message.guild.members.cache.find(
+        (member) => member.user.tag === fields.booster
+      );
+
+      if (!user) {
+        message.reply(
+          "Por favor, preencha valor válido de usuário. (É o nome de usuário do discord e não nickname)"
+        );
+        return;
+      }
+
       verificationCard(client, message, fields);
 
       return;
