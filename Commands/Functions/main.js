@@ -553,6 +553,16 @@ const sendVerificationCard = async (
   }
 };
 
+export async function deleteBoost(interaction, messageId) {
+  try {
+    const message = interaction.message;
+    await message.delete();
+  } catch (error) {
+    console.error("Error deleting boost:", error);
+    await interaction.reply("An error occurred while deleting the boost.");
+  }
+}
+
 export async function verificationCard(client, message, fields) {
   const reply = await message.reply({ content: "Criando Formulário..." });
 

@@ -4,6 +4,7 @@ import {
   handleBoostSubmit,
   firstModal,
   secondModal,
+  deleteBoost,
 } from "../Commands/Functions/main.js";
 
 client.on("interactionCreate", async (interaction) => {
@@ -28,6 +29,10 @@ client.on("interactionCreate", async (interaction) => {
 
   if (interaction.customId && customId.includes("send-secondpage")) {
     secondModal(client, interaction);
+  }
+
+  if (interaction.customId && customId.includes("delete-boost")) {
+    deleteBoost(interaction);
   }
 
   if (interaction.isCommand() && !interaction.user.bot && interaction.guild) {
