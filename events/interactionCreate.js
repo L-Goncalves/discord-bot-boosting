@@ -2,17 +2,12 @@ import { InteractionType, PermissionsBitField, EmbedBuilder } from "discord.js";
 import { client } from "../bot.js";
 import {
   handleBoostSubmit,
-  verificationCard,
   firstModal,
   secondModal,
 } from "../Commands/Functions/main.js";
 
 client.on("interactionCreate", async (interaction) => {
   const customId = interaction.customId;
-
-  if (interaction.isModalSubmit()) {
-    verificationCard(client, interaction);
-  }
 
   if (interaction.customId && customId.includes("send-boosts")) {
     const response = await handleBoostSubmit(interaction, customId);

@@ -37,7 +37,10 @@ export async function getLatestWinnerData(logChannel, roleToSearch) {
     // Iterate through the fetched messages
     for (const [_, message] of messages) {
       // Check if the message contains the desired role
-      if (message.content.includes(roleToSearch)) {
+      if (
+        message.content.includes(roleToSearch) &&
+        message.content.includes("false")
+      ) {
         // Parse the content to extract the latest winner
         const match = /"latestWinner": "(.*?)"/.exec(message.content);
         const latestWinner = match ? match[1] : null;
@@ -97,8 +100,6 @@ export async function createCustomChannel(
 
     const id = interaction.customId ? interaction.customId.split("_")[1] : 0;
 
-    const customData = retrieveData(client, `sorteioboost2_${id}`);
-
     let category = targetChannel.guild.channels.cache.find(
       (c) => c.name === "Boosts Ativos" && c.type === ChannelType.GuildCategory
     );
@@ -111,7 +112,7 @@ export async function createCustomChannel(
 
     // Create a custom channel for the user
     const customChannel = await targetChannel.guild.channels.create({
-      name: `boost-${user.username}-${id}`,
+      name: `${user.username}-${fields.description}`,
       type: ChannelType.GuildText,
       parent: category.id,
       permissionOverwrites: [
@@ -129,25 +130,23 @@ export async function createCustomChannel(
     const infoEmbeb = new EmbedBuilder()
       .setColor(0x9747ff)
       .setTitle(
-        `Boost ${fields.get("role").value.toUpperCase()} / ${fields
-          .get("descricao")
-          .value.toUpperCase()} | #${id}`
+        `Boost ${fields.role.toUpperCase()} / ${fields.description.toUpperCase()} | #${id}`
       )
       .setDescription(
         `Bem vindo o seu boost foi iniciado ${
           user.username
         }! \nInformações do Boost:
 
-    Descrição: ${fields.get("descricao").value.toUpperCase()}
-    Role: ${fields.get("role").value.toUpperCase()}
-    Valor a ser pago: R$${fields.get("preco").value.toUpperCase()}
-    Extra: ${fields.get("extras").value.toUpperCase()}
+    Descrição: ${fields.description.toUpperCase()}
+    Role: ${fields.role.toUpperCase()}
+    Valor a ser pago: R$${fields.price.toUpperCase()}
+    Extra: ${fields.extra.toUpperCase()}
 
 
     Acesso da Conta: 
 
-    Email: ${customData.get("email").value}
-    Senha: ${customData.get("senha").value}
+    Email: ${fields.email}
+    Senha: ${fields.password}
 
 
    ${RULE_TEXT}
@@ -157,9 +156,7 @@ export async function createCustomChannel(
       // .setImage("https://i.imgur.com/AfFp7pu.png")
       .setTimestamp()
       .setFooter({
-        text: `Você tem ${fields
-          .get("timeToDoIt")
-          .value.toUpperCase()} horas para completar esse boost e receber o valor.`,
+        text: `Você tem ${fields.time.toUpperCase()} horas para completar esse boost e receber o valor.`,
       });
 
     // Send a welcome message to the channel
@@ -182,7 +179,7 @@ export async function handleBoostSubmit(interaction, customId) {
 
   let possibleWinners = [];
 
-  const roleName = fields?.get("role").value.toUpperCase();
+  const roleName = fields?.role.toUpperCase();
 
   const roleFound = guild.roles.cache.find(
     (role) => role.name.toUpperCase() === roleName
@@ -205,15 +202,20 @@ export async function handleBoostSubmit(interaction, customId) {
 
   const logChannel = interaction.client.channels.cache.get(logChannelId);
 
-  const role = fields?.get("role").value.toUpperCase();
+  const role = fields.role.toUpperCase();
 
   if (!role) {
     return new Error(
       "Preencha novamente o formulário, o BOT foi reiniciado.  "
     );
   }
+  let winner;
 
-  let winner = await chooseAndReroll(logChannel, role, possibleWinners);
+  if (!fields.booster.includes("Not found")) {
+    winner = fields.booster;
+  } else {
+    winner = await chooseAndReroll(logChannel, role, possibleWinners);
+  }
 
   const winnerUser = guild.members.cache.find(
     (member) => member.user.username === winner
@@ -224,9 +226,7 @@ export async function handleBoostSubmit(interaction, customId) {
   const exampleEmbed = new EmbedBuilder()
     .setColor(0x9747ff)
     .setTitle(
-      `Boost ${fields.get("role").value.toUpperCase()} / ${fields
-        .get("descricao")
-        .value.toUpperCase()} | #${id}`
+      `Boost ${fields.role.toUpperCase()} / ${fields.description.toUpperCase()} | #${id}`
     )
     .setDescription(description)
 
@@ -352,9 +352,9 @@ export async function handleBoostSubmit(interaction, customId) {
     });
 
     logChannel.send({
-      content: `\`\`\`json\n{ "latestWinner": "${winner}", "role": "${fields
-        .get("role")
-        .value.toUpperCase()}", "listOfWinners": ${JSON.stringify(
+      content: `\`\`\`json\n{ "latestWinner": "${winner}", "role": "${fields.role.toUpperCase()}", "isPickedByHand": ${!fields.booster
+        .toUpperCase()
+        .includes("NOT FOUND")},"listOfWinners": ${JSON.stringify(
         possibleWinners
       )}, "indexOfLastWinner": ${JSON.stringify(
         possibleWinners.indexOf(winner)
@@ -553,21 +553,15 @@ const sendVerificationCard = async (
   }
 };
 
-export async function verificationCard(client, interaction) {
-  let randomID = 0;
+export async function verificationCard(client, message, fields) {
+  const reply = await message.reply({ content: "Criando Formulário..." });
 
-  if (interaction.customId && interaction.customId.includes("sorteioboost1")) {
-    randomID = interaction.customId.split("_")[1];
-  }
+  // await new Promise((resolve) => setTimeout(resolve, 5000));
+  reply.delete();
 
-  if (!interaction.customId) {
-    randomID = generateRandomID();
+  const randomID = generateRandomID();
 
-    const reply = await interaction.reply({ content: "Criando Formulário..." });
-
-    // await new Promise((resolve) => setTimeout(resolve, 5000));
-    reply.delete();
-  }
+  storeData(client, `sorteioboost1_${randomID}`, fields);
 
   let components = [
     {
@@ -575,146 +569,42 @@ export async function verificationCard(client, interaction) {
       components: [
         {
           style: 1,
-          label: `Começar a preencher #${randomID}`,
-          custom_id: `send-firstpage_${randomID}`,
+          label: "Enviar para #boosts",
+          custom_id: `send-boosts_${randomID}`,
           disabled: false,
           type: 2,
         },
+        {
+          style: 1,
+          label: "Apagar",
+          custom_id: `delete-boost_${randomID}`,
+          disabled: false,
+          type: 2,
+        },
+        // {
+        //   style: 1,
+        //   label: "Editar Boost",
+        //   custom_id: "edit-boost",
+        //   disabled: false,
+        //   type: 2,
+        // },
       ],
     },
   ];
 
-  let description = descriptionBuilder("@sorteado");
+  const description = descriptionBuilder(
+    fields.booster ? fields.booster : "sorteado",
+    fields,
+    fields
+  );
 
-  let embeb = new EmbedBuilder()
+  const embeb = new EmbedBuilder()
     .setColor(0x9747ff)
-    .setTitle(`Boost - RANK INICIAL - RANK FINAL / ROLE | #${randomID}`)
+    .setTitle(`Boost - ${fields.description} | #${randomID}`)
     .setDescription(description)
 
     // .setImage("https://i.imgur.com/AfFp7pu.png")
     .setTimestamp();
-  // .setFooter({
-  //   text: "Reaja com ✅ para para aceitar o Boost ou com ❌ para negar.",
-  // });
 
-  const channel = client.channels.cache.get(interaction.channelId);
-
-  if (interaction.customId && interaction.customId.includes("sorteioboost1")) {
-    interaction.deferReply({ ephemeral: true });
-    await interaction.deleteReply();
-    let description = descriptionBuilder("", interaction.fields.fields);
-
-    embeb = new EmbedBuilder()
-      .setColor(0x9747ff)
-      .setTitle(
-        `Boost - ${interaction.fields.fields
-          .get("descricao")
-          .value.toUpperCase()} / ${interaction.fields.fields
-          .get("role")
-          .value.toUpperCase()} | #${randomID}`
-      )
-      .setDescription(description)
-
-      // .setImage("https://i.imgur.com/AfFp7pu.png")
-      .setTimestamp();
-    // .setFooter({
-    //   text: "Reaja com ✅ para para aceitar o Boost ou com ❌ para negar.",
-    // });
-
-    storeData(client, interaction.customId, interaction.fields.fields);
-
-    components = [
-      {
-        type: 1,
-        components: [
-          {
-            style: 3,
-            label: "Continuar Preenchendo",
-            custom_id: `send-secondpage_${randomID}`,
-            disabled: false,
-            type: 2,
-          },
-          // {
-          //   style: 1,
-          //   label: "Editar Boost",
-          //   custom_id: "edit-boost",
-          //   disabled: false,
-          //   type: 2,
-          // },
-        ],
-      },
-    ];
-  }
-
-  if (interaction.customId && interaction.customId.includes("sorteioboost2")) {
-    randomID = interaction.customId.split("_")[1];
-
-    interaction.deferReply({ ephemeral: true });
-    await interaction.deleteReply();
-    const previousData = retrieveData(client, `sorteioboost1_${randomID}`);
-
-    let description = descriptionBuilder(
-      "",
-      previousData,
-      interaction.fields.fields
-    );
-
-    storeData(client, `sorteioboost2_${randomID}`, interaction.fields.fields);
-
-    components = [
-      {
-        type: 1,
-        components: [
-          {
-            style: 1,
-            label: "Enviar para #boosts",
-            custom_id: `send-boosts_${randomID}`,
-            disabled: false,
-            type: 2,
-          },
-          // {
-          //   style: 1,
-          //   label: "Editar Email / Senha",
-          //   custom_id: "edit-email",
-          //   disabled: false,
-          //   type: 2,
-          // },
-          // {
-          //   style: 1,
-          //   label: "Editar Boost",
-          //   custom_id: "edit-boost",
-          //   disabled: false,
-          //   type: 2,
-          // },
-        ],
-      },
-    ];
-
-    if (!previousData) {
-      return;
-    }
-
-    embeb = new EmbedBuilder()
-      .setColor(0x9747ff)
-      .setTitle(
-        `Boost - ${previousData
-          .get("descricao")
-          .value.toUpperCase()} / ${previousData
-          .get("role")
-          .value.toUpperCase()} | #${randomID}`
-      )
-      .setDescription(description)
-
-      // .setImage("https://i.imgur.com/AfFp7pu.png")
-      .setTimestamp();
-    // .setFooter({
-    //   text: "Reaja com ✅ para para aceitar o Boost ou com ❌ para negar.",
-    // });
-  }
-
-  if (interaction.customId) {
-    sendVerificationCard(channel, "", components, [embeb], randomID);
-  } else {
-    sendVerificationCard(channel, "", components, [embeb]);
-  }
+  sendVerificationCard(message.channel, "", components, [embeb]);
 }

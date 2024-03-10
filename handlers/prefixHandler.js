@@ -49,16 +49,14 @@ export default async (client) => {
         .slice(client.config.PREFIX.length)
         .trim()
         .split(/ +/);
-      console.log(`> Args: ${args}`);
+
       const commandName = args.shift().toLowerCase();
 
       const prefixCommand = client.prefixCommands.get(commandName);
       if (prefixCommand) {
-        console.log(`> Executing prefix command: ${commandName}`);
         // Execute your prefix command logic here
-        prefixCommand.execute(message, args);
+        prefixCommand.execute(client, message, args);
       } else {
-        console.log(`> Prefix command not found: ${commandName}`);
       }
     });
 

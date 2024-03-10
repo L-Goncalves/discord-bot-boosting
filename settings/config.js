@@ -4,7 +4,7 @@ config();
 
 const settings = {
   TOKEN: process.env.TOKEN || "Bot_Token",
-  PREFIX: process.env.TOKEN || "Bot_PREFIX",
+  PREFIX: process.env.PREFIX || "Bot_PREFIX",
   Owners: ["OwnersId", "OwnersId"],
   Slash: {
     Global: false,
