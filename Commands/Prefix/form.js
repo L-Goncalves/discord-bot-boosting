@@ -14,6 +14,22 @@ const formCommand = {
     try {
       const formData = args.join(" ");
 
+      const commandsChannel = message.channel.name.toLowerCase() === "commands";
+
+      if (!commandsChannel) {
+        const msg = await message.reply(
+          "Este comando só pode ser executado no canal #commands."
+        );
+
+        await message.delete();
+
+        setTimeout(async () => {
+          await msg.delete();
+        }, 5000);
+
+        return;
+      }
+
       // Use regular expressions to extract information
       const description = extractValue(
         formData,

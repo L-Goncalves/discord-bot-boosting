@@ -220,6 +220,9 @@ export async function handleBoostSubmit(interaction, customId) {
   const winnerUser = guild.members.cache.find(
     (member) => member.user.username === winner
   );
+
+  const isAdmin = interaction.member.permissions.has("ADMINISTRATOR");
+
   const mentionUser = winnerUser ? `<@${winnerUser.user.id}>` : winner;
   const description = descriptionBuilder(mentionUser, fields);
 
@@ -246,16 +249,15 @@ export async function handleBoostSubmit(interaction, customId) {
 
     await sentMessage.react("✅");
     await sentMessage.react("❌");
-    // await sentMessage.react("🚫");
+    await sentMessage.react("🚫");
 
     // Listen for reactions
     const filter = (reaction, user) => {
-      const mentionedUserId = mentionUser.replace(/[<@!>]/g, "");
+      return ["✅", "❌"].includes(reaction.emoji.name);
+    };
 
-      return (
-        ["✅", "❌"].includes(reaction.emoji.name) &&
-        user.id === mentionedUserId
-      );
+    const filterAdmin = (reaction, user) => {
+      return ["🚫"].includes(reaction.emoji.name);
     };
 
     const collector = sentMessage.createReactionCollector({
@@ -263,12 +265,17 @@ export async function handleBoostSubmit(interaction, customId) {
       time: 30 * 60 * 1000,
     });
 
+    const colletorAdmin = sentMessage.createReactionCollector({
+      filterAdmin,
+      time: 60 * 60 * 1000,
+    });
+
     collector.on("collect", async (reaction, user) => {
       console.log(`Reaction collected: ${reaction.emoji.name} by ${user.tag}`);
-
-      if (reaction.emoji.name === "✅") {
+      const mentionedUserId = mentionUser.replace(/[<@!>]/g, "");
+      if (reaction.emoji.name === "✅" && user.id === mentionedUserId) {
         console.log(`Creating custom channel for ${user.tag}`);
-        sentMessage.delete();
+        await sentMessage.delete();
         const boostAccepted = await targetChannel.send(
           `O boost foi aceito por ${user.tag} ✅`
         );
@@ -286,8 +293,8 @@ export async function handleBoostSubmit(interaction, customId) {
         ); // Pass the targetChannel
       }
 
-      if (reaction.emoji.name === "❌") {
-        sentMessage.delete();
+      if (reaction.emoji.name === "❌" && user.id === mentionedUserId) {
+        await sentMessage.delete();
 
         const boostRejected = await targetChannel.send(
           `O boost foi negado por ${user.tag}, realizando sorteio novamente.`
@@ -315,14 +322,20 @@ export async function handleBoostSubmit(interaction, customId) {
         }, 5000);
       }
 
-      if (reaction.emoji.name === "🚫") {
+      if (reaction.emoji.name === "🚫" && isAdmin) {
         console.log("Cancel Boost");
+      }
+    });
+
+    colletorAdmin.on("collect", async (reaction, user) => {
+      if (reaction.emoji.name === "🚫" && isAdmin) {
+        await sentMessage.delete();
       }
     });
 
     collector.on("end", async (collected) => {
       if (collected.size === 0) {
-        sentMessage.delete();
+        await sentMessage.delete();
         const boostRejected = await targetChannel.send(
           `O tempo expirou para aceitar ou negar o boost, realizando sorteio novamente...`
         );
