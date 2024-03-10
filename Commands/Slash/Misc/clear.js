@@ -36,8 +36,8 @@ export default {
       );
 
       // Delete the reply message after a certain period of time (e.g., 5 seconds)
-      setTimeout(() => {
-        replyMessage.delete();
+      setTimeout(async () => {
+        await replyMessage.delete();
       }, 5000); // 5000 milliseconds = 5 seconds
     } catch (error) {
       console.error("Error clearing messages:", error);
