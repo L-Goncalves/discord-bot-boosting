@@ -83,7 +83,7 @@ const formCommand = {
         (member) => member.user.tag === fields.booster
       );
 
-      if (!user) {
+      if (!user && !fields.booster.includes("Not found")) {
         message.reply(
           "Por favor, preencha valor válido de usuário. (É o nome de usuário do discord e não nickname)"
         );

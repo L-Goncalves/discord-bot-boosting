@@ -247,6 +247,8 @@ export async function handleBoostSubmit(interaction, customId) {
       embeds: [exampleEmbed],
     });
 
+    let messageDeleted = false;
+
     await sentMessage.react("✅");
     await sentMessage.react("❌");
     await sentMessage.react("🚫");
@@ -329,13 +331,17 @@ export async function handleBoostSubmit(interaction, customId) {
 
     colletorAdmin.on("collect", async (reaction, user) => {
       if (reaction.emoji.name === "🚫" && isAdmin) {
+        messageDeleted = true;
         await sentMessage.delete();
       }
     });
 
     collector.on("end", async (collected) => {
-      if (collected.size === 0) {
-        await sentMessage.delete();
+      if (collected.size === 0 && !isAdmin) {
+        if (sentMessage && sentMessage.deletable & !messageDeleted) {
+          await sentMessage.delete();
+        }
+
         const boostRejected = await targetChannel.send(
           `O tempo expirou para aceitar ou negar o boost, realizando sorteio novamente...`
         );
