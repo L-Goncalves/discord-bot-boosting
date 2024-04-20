@@ -8,6 +8,9 @@ import {
   ActionRowBuilder,
 } from "discord.js";
 import { RULE_TEXT, descriptionBuilder } from "./consts.js";
+import crypto from "crypto";
+
+const secretKey = "gim_goat"; // Make sure this is kept secret
 
 export function pickWinner(participants, indexOfLastWinner = -1) {
   if (participants.length > 0) {
@@ -79,13 +82,6 @@ export async function chooseAndReroll(logChannel, role, possibleWinners) {
   console.log(lastWinner, winner);
 
   return winner;
-  // if (lastWinner === winner) {
-  //   console.log("Rerolling winner...");
-  //   return chooseAndReroll(logChannel, role, possibleWinners); // Recursively call the function to reroll
-  // } else {
-  //   console.log("Winner is different from the last one.");
-  //   return winner;
-  // }
 }
 
 export async function createCustomChannel(
@@ -96,23 +92,29 @@ export async function createCustomChannel(
   interaction
 ) {
   try {
-    // Create a category for the custom channels if it doesn't exist
-
-    const id = interaction.customId ? interaction.customId.split("_")[1] : 0;
+    const id = interaction
+      ? interaction.customId
+        ? interaction.customId.split("_")[1]
+        : 0
+      : fields.boostID;
 
     let category = targetChannel.guild.channels.cache.find(
-      (c) => c.name === "Boosts Ativos" && c.type === ChannelType.GuildCategory
+      (c) =>
+        c.name === "🔴▸⎾ Boosts Ativos⏌◂🔴" &&
+        c.type === ChannelType.GuildCategory
     );
     if (!category) {
       category = await targetChannel.guild.channels.create({
-        name: "Boosts Ativos",
+        name: "🔴▸⎾ Boosts Ativos⏌◂🔴",
         type: ChannelType.GuildCategory,
       });
     }
 
+    const channelName = `${user.username}-${fields.description}`;
     // Create a custom channel for the user
+
     const customChannel = await targetChannel.guild.channels.create({
-      name: `${user.username}-${fields.description}`,
+      name: channelName,
       type: ChannelType.GuildText,
       parent: category.id,
       permissionOverwrites: [
@@ -127,45 +129,161 @@ export async function createCustomChannel(
       ],
     });
 
+    const getImageLink = (role) => {
+      if (role.includes("DPS")) {
+        return "https://i.imgur.com/o67m3Da.png";
+      }
+      if (role.includes("SUPPORT")) {
+        return "https://i.imgur.com/wd5v9cD.png";
+      }
+      if (role.includes("TANK")) {
+        return "https://i.imgur.com/6m1YvqW.png";
+      }
+    };
+
+    console.log(fields);
+
     const infoEmbeb = new EmbedBuilder()
       .setColor(0x9747ff)
       .setTitle(
-        `Boost ${fields.role.toUpperCase()} / ${fields.description.toUpperCase()} | #${id}`
+        `Boost ${fields.role.toUpperCase()} | ${fields.description.toUpperCase()}`
       )
       .setDescription(
-        `Bem vindo o seu boost foi iniciado ${
+        `Bem vindo ${
           user.username
-        }! \nInformações do Boost:
+        }, o seu boost foi iniciado!\n \n**Informações do Boost**:
+    **Código do boost**: ${fields.boostID}
+    **Descrição**: ${fields.description.toUpperCase()}
+    **Role**: ${fields.role.toUpperCase()}
+    ${
+      fields.price
+        ? `**Valor a ser pago**: R$${fields.price.toUpperCase()}`
+        : ""
+    }
+    ${
+      fields.extra &&
+      !fields.extra.toUpperCase().includes("NOT FOUND") &&
+      !fields.extra.toUpperCase().includes("NOTFOUND")
+        ? `**Extra**: ${fields.extra.toUpperCase()}`
+        : ""
+    }
 
-    Descrição: ${fields.description.toUpperCase()}
-    Role: ${fields.role.toUpperCase()}
-    Valor a ser pago: R$${fields.price.toUpperCase()}
-    Extra: ${fields.extra.toUpperCase()}
+
+    **Acesso da Conta:**
+    **Email**: ${decryptPassword(fields.email)}
+    **Senha**: ${decryptPassword(fields.password)}
 
 
-    Acesso da Conta: 
 
-    Email: ${fields.email}
-    Senha: ${fields.password}
-
-
-   ${RULE_TEXT}
       `
       )
 
-      // .setImage("https://i.imgur.com/AfFp7pu.png")
-      .setTimestamp()
-      .setFooter({
-        text: `Você tem ${fields.time.toUpperCase()} horas para completar esse boost e receber o valor.`,
-      });
+      .setImage(getImageLink(fields.role))
+      .setTimestamp();
+    // .setFooter({
+    //   text: `${
+    //     fields.time.toUpperCase().includes("NOT FOUND")
+    //       ? `Você tem ${fields.time.toUpperCase()} horas para completar esse boost e receber o valor.`
+    //       : "\n"
+    //   }`,
+    // });
 
     // Send a welcome message to the channel
     await customChannel.send({ embeds: [infoEmbeb] });
 
     console.log(`Custom channel created for ${user.username}`);
   } catch (error) {
-    console.error("Error creating custom channel:", error);
+    console.error(`Error creating channel:`, error);
   }
+}
+
+export async function submitBoostToChannel(client, guild, fields) {
+  let possibleWinners = [];
+
+  console.log(
+    "BOOSTER:",
+    fields.booster,
+    fields.booster
+      .toUpperCase()
+      .trim()
+      .includes("NOT FOUND" || "NOTFOUND")
+  );
+
+  const roleName = fields?.role.toUpperCase();
+
+  const roleFound = guild.roles.cache.find(
+    (role) => role.name.toUpperCase() === roleName
+  );
+
+  if (roleFound) {
+    const members = roleFound.members.map((member) => member.user.username);
+
+    possibleWinners = [...members];
+  } else {
+    console.log(`Role "${roleName}" not found.`);
+  }
+
+  const targetChannelId = guild.channels.cache.find(
+    (c) => c.name === "💰┃boosts " && c.type === ChannelType.GuildText
+  ).id;
+  const logChannelId = guild.channels.cache.find(
+    (c) => c.name === "💻┃dados" && c.type === ChannelType.GuildText
+  ).id;
+
+  const logChannel = client.channels.cache.get(logChannelId);
+  const targetChannel = client.channels.cache.get(targetChannelId);
+
+  const role = fields.role.toUpperCase();
+
+  let winner;
+
+  if (!fields.booster.includes("Not found")) {
+    winner = fields.booster;
+  } else {
+    winner = await chooseAndReroll(logChannel, role, possibleWinners);
+  }
+
+  const winnerUser = guild.members.cache.find(
+    (member) => member.user.username === winner
+  );
+
+  // const isAdmin = imember.permissions.has("ADMINISTRATOR");
+  const mentionUser = winnerUser ? `<@${winnerUser.user.id}>` : winner;
+  console.log(fields);
+  const description = descriptionBuilder(mentionUser, {
+    ...fields,
+    boostId: fields.boostID,
+  });
+
+  const getImageLink = (role) => {
+    if (role.includes("DPS")) {
+      return "https://i.imgur.com/o67m3Da.png";
+    }
+    if (role.includes("SUPPORT")) {
+      return "https://i.imgur.com/wd5v9cD.png";
+    }
+    if (role.includes("TANK")) {
+      return "https://i.imgur.com/6m1YvqW.png";
+    }
+  };
+
+  const image = getImageLink(fields.role);
+  console.log("imagem:", image, "role", fields.role);
+
+  const exampleEmbed = new EmbedBuilder()
+    .setColor(0x9747ff)
+    .setTitle(
+      `Boost ${fields.role.toUpperCase()} | ${fields.description.toUpperCase()}`
+    )
+    .setDescription(description)
+
+    .setImage(image)
+    .setTimestamp();
+
+  const sentMessage = await targetChannel.send({
+    content: mentionUser,
+    embeds: [exampleEmbed],
+  });
 }
 
 export async function handleBoostSubmit(interaction, customId) {
@@ -194,10 +312,10 @@ export async function handleBoostSubmit(interaction, customId) {
   }
 
   const targetChannelId = guild.channels.cache.find(
-    (c) => c.name === "boosts" && c.type === ChannelType.GuildText
+    (c) => c.name === "💰┃boosts" && c.type === ChannelType.GuildText
   ).id;
   const logChannelId = guild.channels.cache.find(
-    (c) => c.name === "logs" && c.type === ChannelType.GuildText
+    (c) => c.name === "💻┃dados" && c.type === ChannelType.GuildText
   ).id;
 
   const logChannel = interaction.client.channels.cache.get(logChannelId);
@@ -224,20 +342,36 @@ export async function handleBoostSubmit(interaction, customId) {
   const isAdmin = interaction.member.permissions.has("ADMINISTRATOR");
 
   const mentionUser = winnerUser ? `<@${winnerUser.user.id}>` : winner;
-  const description = descriptionBuilder(mentionUser, fields);
+  const description = descriptionBuilder(mentionUser, {
+    ...fields,
+    boostId: id,
+  });
+  // id
+  const getImageLink = (role) => {
+    if (role.includes("DPS")) {
+      return "https://i.imgur.com/o67m3Da.png";
+    }
+    if (role.includes("SUPPORT")) {
+      return "https://i.imgur.com/wd5v9cD.png";
+    }
+    if (role.includes("TANK")) {
+      return "https://i.imgur.com/6m1YvqW.png";
+    }
+  };
+
+  const image = getImageLink(fields.role);
+
+  console.log("imagem:", image, "role", fields.role);
 
   const exampleEmbed = new EmbedBuilder()
     .setColor(0x9747ff)
     .setTitle(
-      `Boost ${fields.role.toUpperCase()} / ${fields.description.toUpperCase()} | #${id}`
+      `Boost ${fields.role.toUpperCase()} | ${fields.description.toUpperCase()}`
     )
     .setDescription(description)
 
-    .setImage("https://i.imgur.com/9akxla2.png")
-    .setTimestamp()
-    .setFooter({
-      text: "Reaja com ✅ para para aceitar o Boost ou com ❌ para negar.",
-    });
+    .setImage(image)
+    .setTimestamp();
 
   const targetChannel = interaction.client.channels.cache.get(targetChannelId);
 
@@ -247,129 +381,6 @@ export async function handleBoostSubmit(interaction, customId) {
       embeds: [exampleEmbed],
     });
 
-    let messageDeleted = false;
-
-    await sentMessage.react("✅");
-    await sentMessage.react("❌");
-    await sentMessage.react("🚫");
-
-    // Listen for reactions
-    const filter = (reaction, user) => {
-      return ["✅", "❌"].includes(reaction.emoji.name);
-    };
-
-    const filterAdmin = (reaction, user) => {
-      return ["🚫"].includes(reaction.emoji.name);
-    };
-
-    const collector = sentMessage.createReactionCollector({
-      filter,
-      time: 30 * 60 * 1000,
-    });
-
-    const colletorAdmin = sentMessage.createReactionCollector({
-      filterAdmin,
-      time: 60 * 60 * 1000,
-    });
-
-    collector.on("collect", async (reaction, user) => {
-      console.log(`Reaction collected: ${reaction.emoji.name} by ${user.tag}`);
-      const mentionedUserId = mentionUser.replace(/[<@!>]/g, "");
-      if (reaction.emoji.name === "✅" && user.id === mentionedUserId) {
-        console.log(`Creating custom channel for ${user.tag}`);
-        await sentMessage.delete();
-        const boostAccepted = await targetChannel.send(
-          `O boost foi aceito por ${user.tag} ✅`
-        );
-
-        setTimeout(() => {
-          boostAccepted.delete();
-        }, 5000);
-
-        await createCustomChannel(
-          user,
-          targetChannel,
-          fields,
-          interaction.client,
-          interaction
-        ); // Pass the targetChannel
-      }
-
-      if (reaction.emoji.name === "❌" && user.id === mentionedUserId) {
-        await sentMessage.delete();
-
-        const boostRejected = await targetChannel.send(
-          `O boost foi negado por ${user.tag}, realizando sorteio novamente.`
-        );
-
-        let dots = 0;
-
-        const intervalId = setInterval(() => {
-          dots++;
-          const dotString = Array(dots).fill(".").join("");
-
-          boostRejected.edit(
-            `O boost foi negado por ${user.tag}, realizando sorteio novamente${dotString}`
-          );
-
-          if (dots >= 3) {
-            dots = 0;
-          }
-        }, 1000);
-
-        setTimeout(() => {
-          clearInterval(intervalId);
-          boostRejected.delete();
-          handleBoostSubmit(interaction, customId);
-        }, 5000);
-      }
-
-      if (reaction.emoji.name === "🚫" && isAdmin) {
-        console.log("Cancel Boost");
-      }
-    });
-
-    colletorAdmin.on("collect", async (reaction, user) => {
-      if (reaction.emoji.name === "🚫" && isAdmin) {
-        messageDeleted = true;
-        await sentMessage.delete();
-      }
-    });
-
-    collector.on("end", async (collected) => {
-      if (collected.size === 0 && !isAdmin) {
-        if (sentMessage && sentMessage.deletable & !messageDeleted) {
-          await sentMessage.delete();
-        }
-
-        const boostRejected = await targetChannel.send(
-          `O tempo expirou para aceitar ou negar o boost, realizando sorteio novamente...`
-        );
-
-        let dots = 0;
-
-        const intervalId = setInterval(() => {
-          dots++;
-          const dotString = Array(dots).fill(".").join("");
-
-          boostRejected.edit(
-            `O tempo expirou para aceitar ou negar o boost, realizando sorteio novamente${dotString}`
-          );
-
-          if (dots >= 3) {
-            dots = 0; // Reset dots after reaching a certain limit
-          }
-        }, 1000);
-
-        // Set a timeout to delete the message and perform other actions after 5 seconds
-        setTimeout(() => {
-          clearInterval(intervalId); // Clear the interval
-          boostRejected.delete();
-          handleBoostSubmit(interaction, customId);
-        }, 5000);
-      }
-    });
-
     logChannel.send({
       content: `\`\`\`json\n{ "latestWinner": "${winner}", "role": "${fields.role.toUpperCase()}", "isPickedByHand": ${!fields.booster
         .toUpperCase()
@@ -377,10 +388,19 @@ export async function handleBoostSubmit(interaction, customId) {
         possibleWinners
       )}, "indexOfLastWinner": ${JSON.stringify(
         possibleWinners.indexOf(winner)
-      )} }\n\`\`\``,
+      )}, "boostID": ${id}, "email": "${hashAndEncryptPassword(
+        fields.email
+      )}", "password": "${hashAndEncryptPassword(
+        fields.password
+      )}",  ${Object.entries(fields)
+        .filter(([key]) => key !== "password" && key !== "email")
+        .map(([key, value]) => `"${key}": "${value}"`)
+        .join(", ")}}\n\`\`\``,
     });
 
-    // await interaction.reply({ content: "Sorteio foi criado!" });
+    // if(!interaction.replied){
+    //   await interaction.reply({ content: "Enviado." });
+    // }
   } else {
     console.error(
       `Channel with ID ${targetChannelId} not found or not a text channel.`
@@ -429,7 +449,7 @@ export async function firstModal(client, interaction) {
 
   const modal = new ModalBuilder()
     .setCustomId(`sorteioboost1_${ID}`)
-    .setTitle(`Sorteio de Boost | #${ID}`);
+    .setTitle(`Sorteio de Boost | ${ID}`);
 
   // An action row only holds one text input,
   // so you need one action row per text input.
@@ -506,7 +526,7 @@ export async function secondModal(client, interaction) {
 
   const modal = new ModalBuilder()
     .setCustomId(`sorteioboost2_${randomID}`)
-    .setTitle(`Sorteio de Boost | #${randomID}`);
+    .setTitle(`Sorteio de Boost | ${randomID}`);
 
   // An action row only holds one text input,
   // so you need one action row per text input.
@@ -541,8 +561,6 @@ const sendVerificationCard = async (
       });
 
       const messageToEdit = messagesToEdit.first();
-
-      // console.log(messageToEdit.get(""));
 
       if (messageToEdit) {
         // Edit the specified message with the new content, components, and embeds
@@ -598,7 +616,7 @@ export async function verificationCard(client, message, fields) {
       components: [
         {
           style: 1,
-          label: "Enviar para #boosts",
+          label: "Enviar para #💰┃boosts",
           custom_id: `send-boosts_${randomID}`,
           disabled: false,
           type: 2,
@@ -623,13 +641,19 @@ export async function verificationCard(client, message, fields) {
 
   const description = descriptionBuilder(
     fields.booster ? fields.booster : "sorteado",
-    fields,
-    fields
+    { ...fields, boostId: randomID },
+    { ...fields, boostId: randomID }
   );
 
   const embeb = new EmbedBuilder()
     .setColor(0x9747ff)
-    .setTitle(`Boost - ${fields.description} | #${randomID}`)
+    .setTitle(
+      `Boost | ${
+        fields.description
+          ? fields.description + ` | ` + fields.role
+          : fields.role
+      }`
+    )
     .setDescription(description)
 
     // .setImage("https://i.imgur.com/AfFp7pu.png")
@@ -637,3 +661,27 @@ export async function verificationCard(client, message, fields) {
 
   sendVerificationCard(message.channel, "", components, [embeb]);
 }
+
+// Function to hash and encrypt the password
+export const hashAndEncryptPassword = (password) => {
+  // Encrypt the password using a symmetric encryption algorithm (e.g., AES)
+  const cipher = crypto.createCipher("aes-256-cbc", secretKey);
+  let encryptedPassword = cipher.update(password, "utf8", "hex");
+  encryptedPassword += cipher.final("hex");
+
+  return encryptedPassword;
+};
+
+// Function to decrypt and verify the password
+export const decryptPassword = (encryptedPassword) => {
+  try {
+    const decipher = crypto.createDecipher("aes-256-cbc", secretKey);
+    let decryptedPassword = decipher.update(encryptedPassword, "hex", "utf8");
+    decryptedPassword += decipher.final("utf8");
+
+    return decryptedPassword;
+  } catch (error) {
+    console.error("Error decrypting password:", error);
+    return null; // Return null or throw an error depending on your error handling strategy
+  }
+};

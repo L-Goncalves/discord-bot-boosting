@@ -1,11 +1,54 @@
 import { PermissionsBitField } from "discord.js";
 import { cooldown } from "../handlers/functions.js";
 import { client } from "../bot.js";
-
+import { readdir } from "node:fs/promises";
 client.on("messageCreate", async (message) => {
-  // code
   if (message.author.bot || !message.guild || !message.id) return;
   let prefix = client.config.PREFIX;
+  const prefixCommandsDir = await readdir(`./Commands/Prefix`);
+
+  const actualCommands = prefixCommandsDir.map(
+    (command) => `!` + command.toLowerCase().replace(".js", "")
+  );
+
+  // Check if the message is sent in the #boosts channel
+  if (message.channel.name === "💰┃boosts") {
+    // If the message is not a command, delete it
+    if (!message.content.startsWith(prefix)) {
+      try {
+        await message.delete();
+
+        const msg = await message.reply(
+          "Esse canal serve apenas para boosts, você não pode conversar aqui."
+        );
+
+        setTimeout(async () => {
+          await msg.delete();
+        }, 3000);
+      } catch (error) {
+        console.error("Error deleting message:", error);
+      }
+      return;
+    } else if (
+      message.content.startsWith(prefix) &&
+      !actualCommands.includes(message.content.toLowerCase().split(" ")[0])
+    ) {
+      try {
+        await message.delete();
+
+        const msg = await message.reply(
+          "Esse canal serve apenas para boosts, você não pode conversar aqui."
+        );
+
+        setTimeout(async () => {
+          await msg.delete();
+        }, 3000);
+      } catch (error) {
+        console.error("Error deleting message:", error);
+      }
+      return;
+    }
+  }
 
   let mentionprefix = new RegExp(
     `^(<@!?${client.user.id}>|${escapeRegex(prefix)})\\s*`

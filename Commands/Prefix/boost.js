@@ -5,7 +5,7 @@ import { verificationCard } from "../Functions/main.js";
  * @type {import("../index.js").PrefixCommand}
  */
 const formCommand = {
-  name: "formtemplate",
+  name: "boost",
   description: "template for the form",
   /**
    * @param {Client} client
@@ -18,12 +18,16 @@ const formCommand = {
 ROLE:
 PRICE: 
 EMAIL: 
-PASSWORD: 
+PASSWORD:
+
 EXTRA:
-BOOSTER:`;
-
-      message.reply(example);
-
+BOOSTER:
+TIME:`;
+      await message.delete();
+      const msg = await message.reply(example);
+      setTimeout(async () => {
+        await msg.delete();
+      }, 5000);
       return;
     } catch (error) {
       console.error("Error executing form command:", error);

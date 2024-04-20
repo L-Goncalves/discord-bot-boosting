@@ -39,7 +39,6 @@ export default async (client) => {
 
     // Set up Prefix Commands
     client.on("messageCreate", (message) => {
-      console.log(client.config.PREFIX);
       if (
         message.author.bot ||
         !message.content.startsWith(client.config.PREFIX)

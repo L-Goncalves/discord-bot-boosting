@@ -16,7 +16,7 @@ client.on("interactionCreate", async (interaction) => {
       if (response instanceof Error) {
         interaction.reply({ content: response.message });
       } else {
-        interaction.reply({ content: "Enviado ao Canal #Boosts" });
+        return;
       }
     } catch (error) {
       console.log("An error ocurred but app didnt crash", error);

@@ -27,8 +27,6 @@ export default {
         limit: 100,
       });
 
-      console.log(messages.size);
-
       await interaction.channel.bulkDelete(messages, true);
       // Send a confirmation message
       const replyMessage = await interaction.reply(
